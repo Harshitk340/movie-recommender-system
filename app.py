@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import pickle
 import requests
 from sklearn.feature_extraction.text import CountVectorizer
@@ -24,10 +23,29 @@ def fetch_poster(movie_id):
         return "https://via.placeholder.com/500x750?text=No+Poster"
 
 
+@st.cache_resource
+def load_data():
+    movies_data = pickle.load(open('movies.pkl', 'rb'))
+
+    cv = CountVectorizer(max_features=3000, stop_words='english')
+    vectors_data = cv.fit_transform(movies_data['tags'])
+
+    return movies_data, vectors_data
+
+
+movies, vectors = load_data()
+
+
 def recommend(movie):
     movie_index = movies[movies['title'] == movie].index[0]
-    distances = similarity[movie_index]
-    movies_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:6]
+
+    distances = cosine_similarity(vectors[movie_index], vectors).flatten()
+
+    movies_list = sorted(
+        list(enumerate(distances)),
+        reverse=True,
+        key=lambda x: x[1]
+    )[1:6]
 
     recommended_movies = []
     recommended_movies_posters = []
@@ -39,12 +57,6 @@ def recommend(movie):
 
     return recommended_movies, recommended_movies_posters
 
-
-movies = pickle.load(open('movies.pkl', 'rb'))
-
-cv = CountVectorizer(max_features=5000, stop_words='english')
-vectors = cv.fit_transform(movies['tags']).toarray()
-similarity = cosine_similarity(vectors)
 
 movies_list = movies['title'].values
 
